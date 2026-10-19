@@ -24,7 +24,8 @@
     "migration:generate": "npm run typeorm -- migration:generate",
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
-    "seed": "tsx src/database/seeds/seed-admin.ts"
+    "seed": "tsx src/database/seeds/seed-admin.ts",
+    "seed:prod": "node dist/database/seeds/seed-admin.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

@@ -1,30 +1,130 @@
 name: eduplan
 
+x-service-healthcheck: &service-healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 20s
+
 services:
   postgres:
     image: postgres:17-alpine
     container_name: eduplan-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      AUTH_DB_NAME: ${AUTH_DB_NAME}
-      AUTH_DB_USER: ${AUTH_DB_USER}
-      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
-      COURSES_DB_NAME: ${COURSES_DB_NAME}
-      COURSES_DB_USER: ${COURSES_DB_USER}
-      COURSES_DB_PASSWORD: ${COURSES_DB_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      AUTH_DB_NAME: ${AUTH_DB_NAME:-auth_db}
+      AUTH_DB_USER: ${AUTH_DB_USER:-auth_user}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-auth_password}
+      COURSES_DB_NAME: ${COURSES_DB_NAME:-courses_db}
+      COURSES_DB_USER: ${COURSES_DB_USER:-courses_user}
+      COURSES_DB_PASSWORD: ${COURSES_DB_PASSWORD:-courses_password}
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - eduplan-net
+
+  courses-service:
+    build: ./courses-service
+    image: eduplan/courses-service:1.0.0
+    container_name: eduplan-courses-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3002
+      API_PREFIX: api
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${COURSES_DB_USER:-courses_user}
+      DB_PASSWORD: ${COURSES_DB_PASSWORD:-courses_password}
+      DB_NAME: ${COURSES_DB_NAME:-courses_db}
+      DB_LOGS: "false"
+    ports:
+      - "127.0.0.1:3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-healthcheck
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/api/health > /dev/null || exit 1"]
+    networks:
+      - eduplan-net
+
+  auth-service:
+    build: ./auth-service
+    image: eduplan/auth-service:1.0.0
+    container_name: eduplan-auth-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3001
+      API_PREFIX: api
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${AUTH_DB_USER:-auth_user}
+      DB_PASSWORD: ${AUTH_DB_PASSWORD:-auth_password}
+      DB_NAME: ${AUTH_DB_NAME:-auth_db}
+      DB_LOGS: "false"
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-me-dev-only-secret-at-least-32-characters}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      COURSES_SERVICE_URL: http://courses-service:3002/api
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@eduplan.bo}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin12345}
+      SEED_ADMIN_FIRST_NAME: ${SEED_ADMIN_FIRST_NAME:-Admin}
+      SEED_ADMIN_LAST_NAME: ${SEED_ADMIN_LAST_NAME:-EDUPLAN}
+      SEED_ADMIN_PHONE: ${SEED_ADMIN_PHONE:-+591 70000000}
+    ports:
+      - "127.0.0.1:3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      courses-service:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-healthcheck
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/health > /dev/null || exit 1"]
+    networks:
+      - eduplan-net
+
+  api-gateway:
+    build: ./api-gateway
+    image: eduplan/api-gateway:1.0.0
+    container_name: eduplan-api-gateway
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      API_PREFIX: api
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:4200}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-me-dev-only-secret-at-least-32-characters}
+      AUTH_SERVICE_URL: http://auth-service:3001
+      COURSES_SERVICE_URL: http://courses-service:3002
+      PROXY_TIMEOUT_MS: 10000
+      THROTTLE_TTL_MS: 60000
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
+      THROTTLE_AUTH_LIMIT: ${THROTTLE_AUTH_LIMIT:-10}
+    ports:
+      - "3000:3000"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      courses-service:
+        condition: service_healthy
+    healthcheck:
+      <<: *service-healthcheck
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health > /dev/null || exit 1"]
     networks:
       - eduplan-net
 
