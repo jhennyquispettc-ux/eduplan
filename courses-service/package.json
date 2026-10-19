@@ -1,6 +1,6 @@
 {
   "name": "courses-service",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "EDUPLAN courses-service: categorías, carreras, cursos, módulos y lecciones",
   "author": "",
   "private": true,

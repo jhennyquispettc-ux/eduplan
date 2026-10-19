@@ -1,6 +1,6 @@
 {
   "name": "auth-service",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "EDUPLAN auth-service: usuarios, autenticación y tokens",
   "author": "",
   "private": true,
