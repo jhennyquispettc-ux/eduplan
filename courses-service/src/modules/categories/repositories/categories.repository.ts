@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, ILike, Not, Repository } from 'typeorm';
 import { Category } from '../entities/category.entity.js';
+import { Course } from '../../courses/entities/course.entity.js';
 import { PaginationQueryDto } from '../../../shared/dto/pagination-query.dto.js';
 import { escapeLike } from '../../../shared/utils/escape-like.util.js';
 
@@ -44,6 +45,12 @@ export class CategoriesRepository {
 
   async save(category: Category): Promise<Category> {
     return this.repository.save(category);
+  }
+
+  async hasActiveCourses(categoryId: string): Promise<boolean> {
+    return this.repository.manager
+      .getRepository(Course)
+      .existsBy({ categoryId });
   }
 
   async softRemove(category: Category): Promise<void> {

@@ -6,6 +6,7 @@ import { CategoryPageDto } from '../dto/category-page.dto.js';
 import { CreateCategoryDto } from '../dto/create-category.dto.js';
 import { UpdateCategoryDto } from '../dto/update-category.dto.js';
 import {
+  CategoryHasCoursesException,
   CategoryNameAlreadyExistsException,
   CategoryNotFoundException,
 } from '../exceptions/index.js';
@@ -58,7 +59,14 @@ export class CategoriesService {
 
   async remove(id: string): Promise<void> {
     const category = await this.findEntity(id);
+    if (await this.categoriesRepository.hasActiveCourses(id)) {
+      throw new CategoryHasCoursesException(id);
+    }
     await this.categoriesRepository.softRemove(category);
+  }
+
+  async exists(id: string): Promise<boolean> {
+    return (await this.categoriesRepository.findById(id)) !== null;
   }
 
   private async findEntity(id: string): Promise<Category> {

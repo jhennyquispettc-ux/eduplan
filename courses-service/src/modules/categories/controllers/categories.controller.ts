@@ -89,6 +89,10 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Eliminar una categoría (borrado lógico)' })
   @ApiNoContentResponse()
   @ApiNotFound(NOT_FOUND)
+  @ApiConflict({
+    code: 'CATEGORY_HAS_COURSES',
+    message: 'Category <id> still has courses and cannot be deleted.',
+  })
   remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.categoriesService.remove(id);
   }

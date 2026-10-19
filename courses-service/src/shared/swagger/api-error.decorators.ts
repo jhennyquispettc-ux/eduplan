@@ -39,16 +39,19 @@ function apiError(status: number, description: string, errors: ErrorExample[]) {
   );
 }
 
-export const ApiValidationError = () =>
-  apiError(400, 'Datos inválidos.', [
-    {
-      code: 'BAD_REQUEST',
-      message: 'name must be shorter than or equal to 100 characters',
-    },
-  ]);
+const VALIDATION_ERROR: ErrorExample = {
+  code: 'BAD_REQUEST',
+  message: 'name must be shorter than or equal to 100 characters',
+};
+
+export const ApiValidationError = (...errors: ErrorExample[]) =>
+  apiError(400, 'Datos inválidos.', [VALIDATION_ERROR, ...errors]);
 
 export const ApiNotFound = (...errors: ErrorExample[]) =>
   apiError(404, 'Recurso no encontrado.', errors);
 
 export const ApiConflict = (...errors: ErrorExample[]) =>
   apiError(409, 'Conflicto con el estado actual.', errors);
+
+export const ApiUnprocessable = (...errors: ErrorExample[]) =>
+  apiError(422, 'La operación no es válida en el estado actual.', errors);
