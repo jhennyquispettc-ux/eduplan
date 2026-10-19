@@ -1,6 +1,6 @@
 {
   "name": "api-gateway",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "EDUPLAN api-gateway: punto único de entrada",
   "author": "",
   "private": true,
